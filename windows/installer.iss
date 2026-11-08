@@ -40,3 +40,5 @@ Name: "{autodesktop}\Lineup"; Filename: "{app}\Lineup.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\Lineup.exe"; Description: "{cm:LaunchProgram,Lineup}"; Flags: nowait postinstall skipifsilent
+; The in-app updater runs this installer silently; open the new version when it finishes.
+Filename: "{app}\Lineup.exe"; Flags: nowait skipifnotsilent

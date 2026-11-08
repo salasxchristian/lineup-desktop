@@ -4,6 +4,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../guide_layout.dart';
 import '../state.dart';
+import '../updater.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../xtream.dart';
@@ -52,8 +53,9 @@ class _GuideScreenState extends State<GuideScreen> {
     _scrollToSelected();
   }
 
-  void _openSettings() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AppearanceScreen()));
+  Future<void> _openSettings({SettingsSection section = SettingsSection.appearance}) async {
+    await showSettings(context, section: section);
+    if (mounted) _focus.requestFocus();
   }
 
   void _scrollToSelected() {
@@ -101,6 +103,9 @@ class _GuideScreenState extends State<GuideScreen> {
         _watch();
       case LogicalKeyboardKey.slash:
         _searchFocus.requestFocus();
+      // Letters typed into search reach this handler too.
+      case LogicalKeyboardKey.keyP when !_searchFocus.hasFocus:
+        state.enterMini();
       default:
         return KeyEventResult.ignored;
     }
@@ -213,7 +218,7 @@ class _GuideScreenState extends State<GuideScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line))),
           child: const Row(children: [
-            BrandMark(),
+            BrandMark(size: 26),
             SizedBox(width: 10),
             Text('Lineup', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
           ]),
@@ -281,12 +286,21 @@ class _GuideScreenState extends State<GuideScreen> {
         Container(
           decoration: BoxDecoration(border: Border(top: BorderSide(color: p.line))),
           padding: const EdgeInsets.all(12),
-          child: _SidebarItem(
-            label: 'Settings',
-            subtitle: host,
-            leading: const Icon(Icons.settings_outlined, size: 17, color: Palette.muted),
-            onTap: _openSettings,
-          ),
+          child: Column(children: [
+            if (state.updater.status == UpdateStatus.available)
+              _SidebarItem(
+                label: 'Update to ${state.updater.latest!.version}',
+                subtitle: 'New version on GitHub',
+                leading: Icon(Icons.arrow_circle_up_rounded, size: 17, color: p.accent),
+                onTap: () => _openSettings(section: SettingsSection.updates),
+              ),
+            _SidebarItem(
+              label: 'Settings',
+              subtitle: host,
+              leading: const Icon(Icons.settings_outlined, size: 17, color: Palette.muted),
+              onTap: _openSettings,
+            ),
+          ]),
         ),
       ]),
     );
@@ -347,7 +361,7 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
-/// The selected channel: live preview (muted), what's on, and Watch.
+/// The selected channel: live preview with sound, what's on, and Watch.
 class _Hero extends StatelessWidget {
   const _Hero({required this.onWatch});
   final VoidCallback onWatch;
@@ -418,6 +432,8 @@ class _Hero extends StatelessWidget {
                     tooltip: state.favorites.contains(ch.id) ? 'Remove from favorites' : 'Add to favorites',
                     onPressed: () => state.toggleFavorite(ch.id),
                   ),
+                  const SizedBox(width: 10),
+                  RoundIconButton(icon: Icons.picture_in_picture_alt_rounded, tooltip: 'Mini player  P', onPressed: state.enterMini),
                   if (next != null) ...[
                     const SizedBox(width: 16),
                     Flexible(

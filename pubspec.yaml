@@ -42,6 +42,7 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   google_fonts: ^6.3.3
   window_manager: ^0.5.1
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:

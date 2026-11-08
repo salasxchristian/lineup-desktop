@@ -76,6 +76,7 @@ class Clock extends StatelessWidget {
 }
 
 /// The red (or lilac, or blue) square with a dot: the app's mark.
+/// The app's mark: the old school TV from the app icon (tool/make_icon.py), its body in the theme's accent.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 22});
   final double size;
@@ -83,18 +84,74 @@ class BrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = PaletteScope.of(context);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: p.accent, borderRadius: BorderRadius.circular(size * 0.28)),
-      alignment: Alignment.center,
-      child: Container(
-        width: size * 0.27,
-        height: size * 0.27,
-        decoration: BoxDecoration(color: p.bg, shape: BoxShape.circle),
-      ),
-    );
+    return CustomPaint(size: Size.square(size), painter: _TvPainter(accent: p.accent, dark: p.bg));
   }
+}
+
+class _TvPainter extends CustomPainter {
+  _TvPainter({required this.accent, required this.dark});
+  final Color accent, dark;
+
+  // The TV's bounds on the icon's 1024 grid: body edges left and right, ear tips to feet top to bottom.
+  static const _left = 226.0, _top = 168.0, _w = 572.0, _h = 662.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.height / _h;
+    canvas.save();
+    canvas.translate((size.width - _w * k) / 2, 0);
+    canvas.scale(k);
+    canvas.translate(-_left, -_top);
+
+    final shade = Color.lerp(accent, Colors.black, 0.25)!;
+    const ears = Color(0xFFE6E7EA);
+    RRect r(double l, double t, double w, double h, double rad) => RRect.fromLTRBR(l, t, l + w, t + h, Radius.circular(rad));
+
+    final ear = Paint()
+      ..color = ears
+      ..strokeWidth = 20
+      ..strokeCap = StrokeCap.round;
+    for (final tip in const [Offset(372, 212), Offset(660, 190)]) {
+      canvas.drawLine(const Offset(512, 348), tip, ear);
+      canvas.drawCircle(tip, 22, Paint()..color = ears);
+    }
+    canvas.drawOval(Rect.fromCenter(center: const Offset(512, 370), width: 132, height: 80), Paint()..color = shade);
+    for (final x in const [296.0, 676.0]) {
+      canvas.drawRRect(r(x, 768, 52, 62, 16), Paint()..color = shade);
+    }
+    canvas.drawRRect(r(226, 370, 572, 424, 92), Paint()..color = accent);
+    canvas.drawRRect(r(262, 406, 380, 352, 76), Paint()..color = shade);
+    final glass = Rect.fromLTWH(274, 418, 356, 328);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(glass, const Radius.circular(66)),
+      Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF2A2E36), Color(0xFF14161A)]).createShader(glass),
+    );
+    canvas.drawArc(
+      Rect.fromLTWH(310, 450, 250, 258),
+      192 * 3.14159265 / 180,
+      66 * 3.14159265 / 180,
+      false,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.27)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 18
+        ..strokeCap = StrokeCap.round,
+    );
+    final pointer = Paint()
+      ..color = ears
+      ..strokeWidth = 8;
+    canvas.drawCircle(const Offset(716, 492), 40, Paint()..color = dark);
+    canvas.drawLine(const Offset(716, 492), const Offset(716, 467), pointer);
+    canvas.drawCircle(const Offset(716, 596), 30, Paint()..color = dark);
+    canvas.drawLine(const Offset(716, 596), const Offset(729, 583), pointer);
+    for (final y in const [670.0, 700.0, 730.0]) {
+      canvas.drawRRect(r(684, y, 64, 12, 6), Paint()..color = shade);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_TvPainter old) => old.accent != accent || old.dark != dark;
 }
 
 class LiveBadge extends StatelessWidget {
@@ -191,7 +248,7 @@ class RoundIconButton extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Icon(icon, size: 19, color: filled ? p.onPrimary : Palette.text),
+            child: Icon(icon, size: size < 40 ? 16 : 19, color: filled ? p.onPrimary : Palette.text),
           ),
         ),
       ),

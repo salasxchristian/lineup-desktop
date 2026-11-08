@@ -1,13 +1,11 @@
 import 'xtream.dart';
 
-/// The guide shows two hours, starting half an hour before the current half hour, so the now
-/// line always sits a quarter to half of the way across.
+/// The guide shows two hours from the current half hour, so the now line sits in the first quarter.
+/// A programme that started earlier is cropped at the left edge, next to its channel: `get_short_epg`
+/// only lists what's on now and next, so an earlier half hour would mostly be empty.
 const guideSpan = Duration(minutes: 120);
 
-DateTime guideStart(DateTime now) {
-  final floored = DateTime(now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
-  return floored.subtract(const Duration(minutes: 30));
-}
+DateTime guideStart(DateTime now) => DateTime(now.year, now.month, now.day, now.hour, now.minute < 30 ? 0 : 30);
 
 /// Where the now line sits, 0 to 1 across the timeline.
 double nowFraction(DateTime now, DateTime start) =>

@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
+import 'dart:ui' show Color, Rect, Size;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'theme.dart';
+import 'updater.dart';
 import 'xtream.dart';
 
 /// LiveCategory filters that aren't provider categories.
@@ -21,9 +25,12 @@ const favoritesCategory = '__favorites__';
 class AppState extends ChangeNotifier {
   AppState({FlutterSecureStorage? storage})
       : _storage = storage ??
-            const FlutterSecureStorage(mOptions: MacOsOptions(usesDataProtectionKeychain: false));
+            const FlutterSecureStorage(mOptions: MacOsOptions(usesDataProtectionKeychain: false)) {
+    updater.addListener(notifyListeners);
+  }
 
   final FlutterSecureStorage _storage;
+  final updater = Updater();
   SharedPreferences? _prefs;
   static const _credentialsKey = 'xtream_credentials';
 
@@ -61,8 +68,11 @@ class AppState extends ChangeNotifier {
   late final Player player = Player(configuration: const PlayerConfiguration(title: 'Lineup', bufferSize: 32 * 1024 * 1024));
   late final VideoController video = VideoController(player);
   int? playingId;
-  bool fullVolume = false;
   Timer? _previewDebounce;
+
+  // Mini player: the main window shrunk to a small video that stays above other windows.
+  bool mini = false;
+  Rect? _fullBounds;
 
   Future<void> restore() async {
     _prefs = await SharedPreferences.getInstance();
@@ -92,6 +102,7 @@ class AppState extends ChangeNotifier {
     }
     restoring = false;
     notifyListeners();
+    unawaited(updater.start());
   }
 
   /// Checks the login, saves it to the keychain and loads the channels. Throws [XtreamException].
@@ -109,6 +120,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    await exitMini();
     await player.stop();
     playingId = null;
     await _storage.delete(key: _credentialsKey);
@@ -288,21 +300,69 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       await player.open(Media(c.liveUrl(id)));
     }
-    await player.setVolume(fullVolume ? 100 : 0);
+    await player.setVolume(100);
   }
 
-  /// Full screen: plays the selected channel with sound.
+  /// Full screen: plays the selected channel.
   Future<void> watch() async {
     final id = selectedId;
     if (id == null) return;
-    fullVolume = true;
     await play(id);
   }
 
-  /// Back to the guide: the preview keeps playing, muted.
+  /// Back to the guide: the preview keeps playing, with sound even if it was muted in the player.
   Future<void> leavePlayer() async {
-    fullVolume = false;
-    await player.setVolume(0);
+    await player.setVolume(100);
+    notifyListeners();
+  }
+
+  // MARK: Mini player
+
+  static const _miniSize = Size(416, 234);
+  static const fullMinimumSize = Size(960, 640);
+
+  /// Shrinks the window to a 16:9 mini player at its top right corner and keeps it on top.
+  Future<void> enterMini() async {
+    if (mini) return;
+    final id = playingId ?? selectedId;
+    if (id == null) return;
+    if (playingId == null) await play(id);
+    if (await windowManager.isFullScreen()) {
+      await windowManager.setFullScreen(false);
+      // macOS animates out of full screen; resizing during it is ignored.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+    }
+    _fullBounds = await windowManager.getBounds();
+    mini = true;
+    notifyListeners();
+    final b = _fullBounds!;
+    if (Platform.isMacOS) {
+      // A hidden title bar still takes clicks along the top and zooms on double-click; frameless hides it for real.
+      await windowManager.setAsFrameless();
+      await windowManager.setHasShadow(true);
+    } else {
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: false);
+    }
+    await windowManager.setMinimumSize(const Size(256, 144));
+    // Caps a zoom too: macOS still zooms on a double-click along the top edge.
+    await windowManager.setMaximumSize(const Size(960, 540));
+    await windowManager.setBounds(Rect.fromLTWH(b.right - _miniSize.width - 24, b.top + 24, _miniSize.width, _miniSize.height));
+    await windowManager.setAspectRatio(16 / 9);
+    await windowManager.setAlwaysOnTop(true);
+  }
+
+  /// Back to the full window where it was.
+  Future<void> exitMini() async {
+    if (!mini) return;
+    await windowManager.setAlwaysOnTop(false);
+    await windowManager.setAspectRatio(0);
+    await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+    await windowManager.setBackgroundColor(const Color(0xFF0B0C0E));
+    await windowManager.setMinimumSize(fullMinimumSize);
+    // No limit: macOS takes a huge size, Windows takes -1.
+    await windowManager.setMaximumSize(Platform.isMacOS ? const Size(100000, 100000) : const Size(-1, -1));
+    if (_fullBounds != null) await windowManager.setBounds(_fullBounds!);
+    mini = false;
     notifyListeners();
   }
 

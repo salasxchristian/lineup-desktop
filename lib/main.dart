@@ -4,6 +4,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'screens/connect.dart';
 import 'screens/guide.dart';
+import 'screens/mini.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -16,7 +17,7 @@ Future<void> main() async {
     const WindowOptions(
       title: 'Lineup',
       size: Size(1280, 800),
-      minimumSize: Size(960, 640),
+      minimumSize: AppState.fullMinimumSize,
       center: true,
       backgroundColor: Color(0xFF0B0C0E),
     ),
@@ -53,6 +54,12 @@ class LineupApp extends StatelessWidget {
                   : state.credentials == null
                       ? const ConnectScreen()
                       : const GuideScreen(),
+              // The mini player sits over the navigator, which stays alive underneath so the
+              // guide or player comes back as it was.
+              builder: (context, child) => Stack(fit: StackFit.expand, children: [
+                Offstage(offstage: state.mini, child: TickerMode(enabled: !state.mini, child: child!)),
+                if (state.mini) Overlay(initialEntries: [OverlayEntry(builder: (_) => const MiniPlayer())]),
+              ]),
             ),
           ),
         );

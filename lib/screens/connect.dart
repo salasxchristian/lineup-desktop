@@ -66,7 +66,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
             ),
             child: AutofillGroup(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                const BrandMark(size: 36),
+                const BrandMark(size: 40),
                 const SizedBox(height: 24),
                 const Text('Connect your provider',
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.65, height: 1.15)),

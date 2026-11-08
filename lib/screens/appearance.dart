@@ -1,61 +1,101 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import '../updater.dart';
 import '../widgets.dart';
 
-enum _Section { appearance, provider }
+enum SettingsSection { appearance, provider, updates }
 
-/// Settings: the theme picker and the provider login.
-class AppearanceScreen extends StatefulWidget {
-  const AppearanceScreen({super.key});
-
-  @override
-  State<AppearanceScreen> createState() => _AppearanceScreenState();
+/// Opens Settings as a modal over the guide. Esc, the close button or a click outside closes it.
+Future<void> showSettings(BuildContext context, {SettingsSection section = SettingsSection.appearance}) {
+  return showGeneralDialog(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Close settings',
+    barrierColor: Colors.black.withValues(alpha: 0.6),
+    transitionDuration: const Duration(milliseconds: 160),
+    pageBuilder: (_, _, _) => SettingsDialog(section: section),
+    transitionBuilder: (_, a, _, child) {
+      final curved = CurvedAnimation(parent: a, curve: Curves.easeOutCubic);
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(scale: Tween(begin: 0.97, end: 1.0).animate(curved), child: child),
+      );
+    },
+  );
 }
 
-class _AppearanceScreenState extends State<AppearanceScreen> {
-  _Section _section = _Section.appearance;
+/// Settings: the theme picker and the provider login.
+class SettingsDialog extends StatefulWidget {
+  const SettingsDialog({super.key, this.section = SettingsSection.appearance});
+  final SettingsSection section;
+
+  @override
+  State<SettingsDialog> createState() => _SettingsDialogState();
+}
+
+class _SettingsDialogState extends State<SettingsDialog> {
+  late SettingsSection _section = widget.section;
 
   @override
   Widget build(BuildContext context) {
     final p = PaletteScope.of(context);
-    return Scaffold(
-      body: Column(children: [
-        Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line))),
-          child: Row(children: [
-            BackPill(label: 'Guide', onPressed: () => Navigator.of(context).pop()),
-            const Expanded(
-              child: Center(child: Text('Settings', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -0.15))),
+    final screen = MediaQuery.sizeOf(context);
+    return Center(
+      child: Material(
+        color: p.bg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.07)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        elevation: 24,
+        shadowColor: Colors.black,
+        child: SizedBox(
+          width: (screen.width - 64).clamp(0, 940),
+          height: (screen.height - 64).clamp(0, 660),
+          child: Column(children: [
+            Container(
+              height: 60,
+              padding: const EdgeInsets.only(left: 24, right: 14),
+              decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line))),
+              child: Row(children: [
+                const Expanded(child: Text('Settings', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -0.15))),
+                RoundIconButton(icon: Icons.close_rounded, tooltip: 'Close', size: 34, onPressed: () => Navigator.of(context).pop()),
+              ]),
             ),
-            const SizedBox(width: 96),
+            Expanded(
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 200,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(border: Border(right: BorderSide(color: p.line))),
+                  child: Column(children: [
+                    for (final (section, label) in const [
+                      (SettingsSection.appearance, 'Appearance'),
+                      (SettingsSection.provider, 'Provider'),
+                      (SettingsSection.updates, 'Updates'),
+                    ]) ...[
+                      _NavItem(label: label, selected: _section == section, onTap: () => setState(() => _section = section)),
+                      const SizedBox(height: 2),
+                    ],
+                  ]),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+                    child: switch (_section) {
+                      SettingsSection.appearance => const _Appearance(),
+                      SettingsSection.provider => const _Provider(),
+                      SettingsSection.updates => const _Updates(),
+                    },
+                  ),
+                ),
+              ]),
+            ),
           ]),
         ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 40, 28, 48),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1180),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  SizedBox(
-                    width: 200,
-                    child: Column(children: [
-                      _NavItem(label: 'Appearance', selected: _section == _Section.appearance, onTap: () => setState(() => _section = _Section.appearance)),
-                      const SizedBox(height: 2),
-                      _NavItem(label: 'Provider', selected: _section == _Section.provider, onTap: () => setState(() => _section = _Section.provider)),
-                    ]),
-                  ),
-                  const SizedBox(width: 40),
-                  Expanded(child: _section == _Section.appearance ? const _Appearance() : const _Provider()),
-                ]),
-              ),
-            ),
-          ),
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -104,7 +144,7 @@ class _Appearance extends StatelessWidget {
       ),
       const SizedBox(height: 32),
       LayoutBuilder(builder: (context, box) {
-        final cols = (box.maxWidth / 236).floor().clamp(1, 3);
+        final cols = (box.maxWidth / 196).floor().clamp(1, 3);
         final w = (box.maxWidth - 16 * (cols - 1)) / cols;
         return Wrap(spacing: 16, runSpacing: 16, children: [
           for (final theme in Palette.all)
@@ -308,6 +348,85 @@ class _Provider extends StatelessWidget {
           child: const Text('Sign out', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         ),
       ]),
+    ]);
+  }
+}
+
+class _Updates extends StatelessWidget {
+  const _Updates();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final p = PaletteScope.of(context);
+    final u = state.updater;
+    final release = u.latest;
+    final (line, detail) = switch (u.status) {
+      UpdateStatus.idle => ('Lineup ${u.current}', 'Checks GitHub for a new version when it opens and twice a day.'),
+      UpdateStatus.checking => ('Checking for updates', 'Asking GitHub for the latest release.'),
+      UpdateStatus.upToDate => ('Lineup ${u.current} is the latest version', 'You’re up to date.'),
+      UpdateStatus.available => ('Lineup ${release!.version} is available', 'You have ${u.current}.'),
+      UpdateStatus.downloading => ('Downloading ${release!.version}', '${((u.progress ?? 0) * 100).round()}%'),
+      UpdateStatus.installing => ('Installing ${release!.version}', 'Lineup will close and open again.'),
+      UpdateStatus.failed => ('Lineup ${u.current}', u.error ?? 'Something went wrong.'),
+    };
+    final inApp = Updater.installsInApp;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Updates', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.7)),
+      const SizedBox(height: 8),
+      const Text('New versions come from the releases on GitHub.', style: TextStyle(fontSize: 14, height: 1.55, color: Palette.muted)),
+      const SizedBox(height: 32),
+      Container(
+        constraints: const BoxConstraints(maxWidth: 560),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: p.raised, borderRadius: BorderRadius.circular(16), border: Border.all(color: p.line)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(line, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(detail,
+              style: TextStyle(fontSize: 13, color: u.status == UpdateStatus.failed ? p.accent : Palette.muted, fontFeatures: tabular)),
+          if (u.status == UpdateStatus.downloading) ...[
+            const SizedBox(height: 14),
+            ThinProgress(value: u.progress ?? 0, color: p.accent, track: Colors.white.withValues(alpha: 0.1), height: 4),
+          ],
+          if (release != null && u.status == UpdateStatus.available && release.notes.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(height: 1, color: p.line),
+            const SizedBox(height: 16),
+            const Text('WHAT’S NEW', style: eyebrow),
+            const SizedBox(height: 8),
+            Text(release.notes, maxLines: 12, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, height: 1.55, color: Palette.textSoft)),
+          ],
+        ]),
+      ),
+      const SizedBox(height: 24),
+      Row(children: [
+        if (u.status == UpdateStatus.available || u.status == UpdateStatus.downloading || u.status == UpdateStatus.installing)
+          PrimaryPill(
+            label: inApp ? 'Install ${release!.version}' : 'Download ${release!.version}',
+            icon: inApp ? Icons.system_update_alt_rounded : Icons.download_rounded,
+            onPressed: u.install,
+            busy: u.busy,
+          )
+        else
+          PrimaryPill(label: 'Check for updates', icon: Icons.refresh_rounded, onPressed: () => u.check(), busy: u.status == UpdateStatus.checking),
+        const SizedBox(width: 10),
+        TextButton(
+          onPressed: u.openReleasePage,
+          style: TextButton.styleFrom(
+            foregroundColor: Palette.text,
+            backgroundColor: p.surface,
+            minimumSize: const Size(0, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            shape: const StadiumBorder(),
+          ),
+          child: const Text('Releases on GitHub', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        ),
+      ]),
+      if (u.status == UpdateStatus.available && !inApp) ...[
+        const SizedBox(height: 14),
+        const Text('Downloads in your browser. Unzip it and replace Lineup in Applications.', style: TextStyle(fontSize: 12, color: Palette.dim)),
+      ],
     ]);
   }
 }

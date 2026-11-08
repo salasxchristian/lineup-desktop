@@ -7,9 +7,11 @@ Design: [Live TV Client canvas](https://claude.ai/artifact/MmSkrfVrv3wpJR4CF18vd
 ## Screens
 
 - **Connect**: server URL, username, password. The login is saved in the system keychain.
-- **Guide**: a left sidebar with search, categories (with counts) and Settings. Next to it, the selected channel with a muted live preview and what's on, then a two-hour timeline with a now line. The guide comes from `get_short_epg`, fetched as rows come on screen (four at a time, kept 15 minutes).
+- **Guide**: a left sidebar with search, categories (with counts) and Settings. Next to it, the selected channel with a live preview (with sound) and what's on, then a two-hour timeline with a now line. The guide comes from `get_short_epg`, fetched as rows come on screen (four at a time, kept 15 minutes).
 - **Player**: the video with a panel that fades after 4 s.
-- **Settings**: theme picker (Dark, Lilac, Pastel blue) and the provider's status, Refresh channels and Sign out.
+- **Mini player**: the window shrinks to a small 16:9 video that stays above other windows. Drag it anywhere, hover for controls.
+- **Settings**: a modal with the theme picker (Dark, Lilac, Pastel blue), the provider's status, Refresh channels and Sign out, and Updates.
+- **Updates**: checks this repo's latest GitHub release on launch and every 12 hours. A newer version shows "Update to x.y.z" in the sidebar. Windows downloads the installer, runs it silently and reopens Lineup. The Mac app is sandboxed and can't replace itself, so it downloads the zip in the browser; unzip it and replace Lineup in Applications.
 
 Only one stream plays at a time: the preview and the player share it, so a one-connection line works.
 
@@ -21,10 +23,13 @@ Only one stream plays at a time: the preview and the player share it, so a one-c
 | Guide | ← → | previous / next category |
 | Guide | Return | watch the selected channel |
 | Guide | / | search |
+| Guide, Player | P | mini player |
 | Player | ↑ ↓ | change channel |
 | Player | F, double-click | full screen |
 | Player | M | mute |
 | Player | Esc | back to the guide |
+| Mini player | ↑ ↓, M | change channel, mute |
+| Mini player | Esc, P, double-click | back to the full window |
 
 ## Run
 
@@ -58,10 +63,10 @@ flutter analyze && flutter test
 
 ## Release
 
-Push a version tag and GitHub Actions (`.github/workflows/release.yml`) builds everything and publishes a GitHub Release:
+Set `version:` in `pubspec.yaml`, commit, then push the matching tag. GitHub Actions (`.github/workflows/release.yml`) fails if the two differ, since the updater compares the app's own version to the tag. Then it builds everything and publishes a GitHub Release, which the in-app updater picks up:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
 | File | What |

@@ -107,24 +107,24 @@ void main() {
     final now = DateTime(2026, 11, 7, 18, 36);
     final start = guideStart(now);
 
-    test('the window starts half an hour before the current half hour', () {
-      expect(start, DateTime(2026, 11, 7, 18, 0));
-      expect(nowFraction(now, start), closeTo(0.3, 1e-9));
-      expect(guideStart(DateTime(2026, 11, 7, 18, 5)), DateTime(2026, 11, 7, 17, 30));
+    test('the window starts at the current half hour', () {
+      expect(start, DateTime(2026, 11, 7, 18, 30));
+      expect(nowFraction(now, start), closeTo(0.05, 1e-9));
+      expect(guideStart(DateTime(2026, 11, 7, 18, 5)), DateTime(2026, 11, 7, 18, 0));
     });
 
-    test('blocks are clipped to the window and marked past, live or future', () {
+    test('blocks are clipped to the window and marked live or future', () {
       Programme p(int fromMin, int toMin) => Programme(
           title: '$fromMin', start: start.add(Duration(minutes: fromMin)), end: start.add(Duration(minutes: toMin)));
-      final blocks = layoutBlocks([p(-30, 30), p(30, 60), p(60, 90), p(90, 200), p(200, 260)], start, now);
-      expect(blocks.length, 4);
+      final blocks = layoutBlocks([p(-90, -10), p(-60, 30), p(30, 90), p(90, 200), p(200, 260)], start, now);
+      expect(blocks.length, 3);
+      // Started an hour before the window: cropped to the left edge.
       expect(blocks[0].left, 0);
       expect(blocks[0].width, closeTo(0.25, 1e-9));
-      expect(blocks[0].state, BlockState.past);
-      expect(blocks[1].state, BlockState.live);
-      expect(blocks[1].elapsed, closeTo(0.2, 1e-9));
-      expect(blocks[2].state, BlockState.future);
-      expect(blocks[3].left + blocks[3].width, closeTo(1, 1e-9));
+      expect(blocks[0].state, BlockState.live);
+      expect(blocks[0].elapsed, closeTo(0.2, 1e-9));
+      expect(blocks[1].state, BlockState.future);
+      expect(blocks[2].left + blocks[2].width, closeTo(1, 1e-9));
     });
 
     test('four half-hour slots', () {

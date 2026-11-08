@@ -29,6 +29,9 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-${GITHUB_SHA::7}"; fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
+          # The app reports the pubspec version to the updater, so a tag must match it.
+          p="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
+          if [[ "$GITHUB_REF" == refs/tags/v* && "$p" != "$v" ]]; then echo "::error::Tag v$v but pubspec.yaml says $p"; exit 1; fi
       - run: flutter pub get
       - run: flutter test
       - run: flutter build windows --release
@@ -64,6 +67,9 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-${GITHUB_SHA::7}"; fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
+          # The app reports the pubspec version to the updater, so a tag must match it.
+          p="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
+          if [[ "$GITHUB_REF" == refs/tags/v* && "$p" != "$v" ]]; then echo "::error::Tag v$v but pubspec.yaml says $p"; exit 1; fi
       - run: flutter pub get
       - run: flutter build macos --release
       - name: Zip

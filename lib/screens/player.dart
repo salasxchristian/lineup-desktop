@@ -68,6 +68,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _poke();
   }
 
+  Future<void> _mini() async {
+    final state = AppScope.read(context);
+    if (_fullScreen) setState(() => _fullScreen = false);
+    await state.enterMini();
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
     switch (e.logicalKey) {
@@ -86,6 +92,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _poke();
       case LogicalKeyboardKey.keyM:
         _toggleMute();
+      case LogicalKeyboardKey.keyP:
+        _mini();
       default:
         _poke();
         return KeyEventResult.ignored;
@@ -157,6 +165,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           onUp: () => _step(-1),
                           onDown: () => _step(1),
                           onMute: _toggleMute,
+                          onMini: _mini,
                           onFullScreen: () => _setFullScreen(!_fullScreen),
                         )),
                       ),
@@ -172,9 +181,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
 }
 
 class _Panel extends StatelessWidget {
-  const _Panel({required this.muted, required this.fullScreen, required this.onUp, required this.onDown, required this.onMute, required this.onFullScreen});
+  const _Panel({
+    required this.muted,
+    required this.fullScreen,
+    required this.onUp,
+    required this.onDown,
+    required this.onMute,
+    required this.onMini,
+    required this.onFullScreen,
+  });
   final bool muted, fullScreen;
-  final VoidCallback onUp, onDown, onMute, onFullScreen;
+  final VoidCallback onUp, onDown, onMute, onMini, onFullScreen;
 
   @override
   Widget build(BuildContext context) {
@@ -221,6 +238,8 @@ class _Panel extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             RoundIconButton(icon: muted ? Icons.volume_off_rounded : Icons.volume_up_rounded, tooltip: muted ? 'Unmute  M' : 'Mute  M', onPressed: onMute),
+            const SizedBox(width: 8),
+            RoundIconButton(icon: Icons.picture_in_picture_alt_rounded, tooltip: 'Mini player  P', onPressed: onMini),
             const SizedBox(width: 8),
             RoundIconButton(
               icon: fullScreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
