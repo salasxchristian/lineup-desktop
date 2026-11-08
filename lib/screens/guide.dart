@@ -484,12 +484,7 @@ class _Preview extends StatelessWidget {
               child: Stack(fit: StackFit.expand, children: [
                 if (state.playingId == channel.id)
                   IgnorePointer(child: Video(controller: state.video, controls: NoVideoControls, fill: const Color(0xFF050506))),
-                StreamBuilder<bool>(
-                  stream: state.player.stream.buffering,
-                  builder: (context, snap) => snap.data == true
-                      ? const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54)))
-                      : const SizedBox.shrink(),
-                ),
+                if (state.playingId == channel.id) const PlaybackStatus(compact: true),
                 const Positioned(top: 12, left: 12, child: LiveBadge()),
                 Positioned(
                   left: 0,

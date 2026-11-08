@@ -95,12 +95,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
             color: Colors.black,
             child: Stack(fit: StackFit.expand, children: [
               Video(controller: state.video, controls: NoVideoControls, fill: Colors.black),
-              StreamBuilder<bool>(
-                stream: state.player.stream.buffering,
-                builder: (context, snap) => snap.data == true
-                    ? const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white60)))
-                    : const SizedBox.shrink(),
-              ),
+              const PlaybackStatus(compact: true),
               AnimatedOpacity(
                 opacity: _hover ? 1 : 0,
                 duration: const Duration(milliseconds: 160),

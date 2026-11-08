@@ -121,21 +121,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             onDoubleTap: () => _setFullScreen(!_fullScreen),
             child: Stack(fit: StackFit.expand, children: [
               Video(controller: state.video, controls: NoVideoControls, fill: Colors.black),
-              StreamBuilder<bool>(
-                stream: state.player.stream.buffering,
-                builder: (context, snap) => snap.data == true
-                    ? const Center(child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white60)))
-                    : const SizedBox.shrink(),
-              ),
-              StreamBuilder<String>(
-                stream: state.player.stream.error,
-                builder: (context, snap) => snap.hasData
-                    ? Center(
-                        child: Text('Can’t play this channel right now.',
-                            style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14)),
-                      )
-                    : const SizedBox.shrink(),
-              ),
+              const PlaybackStatus(),
               AnimatedOpacity(
                 opacity: _chrome ? 1 : 0,
                 duration: const Duration(milliseconds: 220),

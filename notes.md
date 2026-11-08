@@ -9,3 +9,4 @@
 - Background clicks and typing from computer use don't reach Flutter's text fields; typing needs full-screen control.
 - Works against the real Dispatcharr line (my own panel, hundreds of channels): `get_short_epg` returns guide data and logos load.
 - Updater (`lib/updater.dart`): reads `releases/latest` from the public repo. Windows downloads the installer and runs it with `/VERYSILENT`; the installer's `skipifnotsilent` run entry reopens Lineup. The Mac app stays sandboxed (a deliberate choice), so it can't replace its own bundle and opens the zip download in the browser instead.
+- Reconnect (`AppState` > Reconnect): mpv's `stream-lavf-o` reconnect options handle short drops inside ffmpeg; the app watches `error`, `completed` (a live stream never really ends) and buffering longer than 12 s. Retries reset after 10 s of clean playback. Not yet tested against a real drop.

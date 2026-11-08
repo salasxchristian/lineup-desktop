@@ -375,3 +375,44 @@ class KeyCap extends StatelessWidget {
 }
 
 const eyebrow = TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.9, color: Palette.dim);
+
+/// Over the video: a spinner while it buffers, "Reconnecting" while a dropped stream is being reopened,
+/// and a Try again button once reconnecting gives up. [compact] is for the guide preview and mini player.
+class PlaybackStatus extends StatelessWidget {
+  const PlaybackStatus({super.key, this.compact = false});
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppScope.of(context);
+    final spinner = SizedBox(
+      width: compact ? 22 : 28,
+      height: compact ? 22 : 28,
+      child: CircularProgressIndicator(strokeWidth: compact ? 2 : 2.5, color: Colors.white60),
+    );
+    final label = TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: compact ? 12 : 14, fontWeight: FontWeight.w500);
+    if (state.playbackFailed) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Can’t play this channel right now.', style: label),
+          SizedBox(height: compact ? 8 : 14),
+          PrimaryPill(label: 'Try again', icon: Icons.refresh_rounded, height: compact ? 32 : 44, onPressed: state.retryPlayback),
+        ]),
+      );
+    }
+    if (state.reconnecting) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          spinner,
+          SizedBox(height: compact ? 8 : 12),
+          Text('Reconnecting', style: label),
+        ]),
+      );
+    }
+    return StreamBuilder<bool>(
+      stream: state.player.stream.buffering,
+      initialData: state.player.state.buffering,
+      builder: (context, snap) => snap.data == true ? Center(child: spinner) : const SizedBox.shrink(),
+    );
+  }
+}

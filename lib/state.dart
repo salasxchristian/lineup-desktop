@@ -84,7 +84,10 @@ class AppState extends ChangeNotifier {
       final native = player.platform as NativePlayer;
       await native.setProperty('user-agent', XtreamClient.userAgent);
       await native.setProperty('network-timeout', '15');
+      // Lets ffmpeg reconnect a dropped HTTP stream by itself before the app has to reopen it.
+      await native.setProperty('stream-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=4');
     }
+    _watchPlayback();
     try {
       final raw = await _storage.read(key: _credentialsKey);
       final saved = raw == null ? null : XtreamCredentials.fromJson(jsonDecode(raw) as Map<String, dynamic>);
@@ -121,8 +124,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> signOut() async {
     await exitMini();
-    await player.stop();
     playingId = null;
+    _resetReconnect();
+    await player.stop();
     await _storage.delete(key: _credentialsKey);
     client?.close();
     client = null;
@@ -295,12 +299,87 @@ class AppState extends ChangeNotifier {
     final c = client;
     if (c == null) return;
     _previewDebounce?.cancel();
-    if (playingId != id) {
+    if (playingId != id || playbackFailed) {
       playingId = id;
+      _resetReconnect();
       notifyListeners();
       await player.open(Media(c.liveUrl(id)));
     }
     await player.setVolume(100);
+  }
+
+  // MARK: Reconnect
+  //
+  // Live streams drop: the provider hiccups, Wi-Fi blinks, the Mac sleeps. When the stream errors, ends or
+  // stalls, reopen the same channel with a growing pause, and give up after a few tries.
+
+  bool reconnecting = false;
+  bool playbackFailed = false;
+  int _retries = 0;
+  Timer? _retryTimer, _stallTimer, _healthyTimer;
+  final List<StreamSubscription<Object?>> _playbackSubs = [];
+  static const _maxRetries = 8;
+  static const _stallLimit = Duration(seconds: 12);
+  static const _healthyAfter = Duration(seconds: 10);
+
+  void _watchPlayback() {
+    if (_playbackSubs.isNotEmpty) return;
+    _playbackSubs.addAll([
+      player.stream.error.listen((_) => _dropped()),
+      // A live stream never really ends, so finishing means the connection closed.
+      player.stream.completed.listen((done) {
+        if (done) _dropped();
+      }),
+      player.stream.buffering.listen((buffering) {
+        _stallTimer?.cancel();
+        _healthyTimer?.cancel();
+        if (buffering) {
+          _stallTimer = Timer(_stallLimit, _dropped);
+        } else {
+          if (reconnecting) {
+            reconnecting = false;
+            notifyListeners();
+          }
+          // Only count it as fixed once it has played for a while.
+          _healthyTimer = Timer(_healthyAfter, () => _retries = 0);
+        }
+      }),
+    ]);
+  }
+
+  void _dropped() {
+    final id = playingId;
+    if (id == null || client == null || (_retryTimer?.isActive ?? false)) return;
+    _stallTimer?.cancel();
+    _healthyTimer?.cancel();
+    if (_retries >= _maxRetries) {
+      reconnecting = false;
+      playbackFailed = true;
+      notifyListeners();
+      return;
+    }
+    final wait = Duration(seconds: [1, 2, 4, 8][_retries.clamp(0, 3)]);
+    _retries++;
+    reconnecting = true;
+    notifyListeners();
+    _retryTimer = Timer(wait, () {
+      if (playingId == id && client != null) player.open(Media(client!.liveUrl(id)));
+    });
+  }
+
+  void _resetReconnect() {
+    _retryTimer?.cancel();
+    _stallTimer?.cancel();
+    _healthyTimer?.cancel();
+    _retries = 0;
+    reconnecting = false;
+    playbackFailed = false;
+  }
+
+  /// "Try again" after reconnecting gave up.
+  Future<void> retryPlayback() async {
+    final id = playingId;
+    if (id != null) await play(id);
   }
 
   /// Full screen: plays the selected channel.
@@ -419,6 +498,10 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _previewDebounce?.cancel();
+    _resetReconnect();
+    for (final sub in _playbackSubs) {
+      sub.cancel();
+    }
     player.dispose();
     client?.close();
     super.dispose();

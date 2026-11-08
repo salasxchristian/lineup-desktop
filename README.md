@@ -15,6 +15,8 @@ Design: [Live TV Client canvas](https://claude.ai/artifact/MmSkrfVrv3wpJR4CF18vd
 
 Only one stream plays at a time: the preview and the player share it, so a one-connection line works.
 
+Dropped streams reconnect on their own: ffmpeg retries the connection first, then the app reopens the channel when it errors, ends or stalls for 12 s, waiting 1, 2, 4 and 8 s between tries. After 8 tries it shows Try again.
+
 ## Keys
 
 | Where | Key | Does |
