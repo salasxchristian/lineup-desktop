@@ -438,8 +438,9 @@ class AppState extends ChangeNotifier {
     await windowManager.setTitleBarStyle(TitleBarStyle.normal);
     await windowManager.setBackgroundColor(const Color(0xFF0B0C0E));
     await windowManager.setMinimumSize(fullMinimumSize);
-    // No limit: macOS takes a huge size, Windows takes -1.
-    await windowManager.setMaximumSize(Platform.isMacOS ? const Size(100000, 100000) : const Size(-1, -1));
+    // No limit. Pass a huge size: window_manager's Windows code ignores -1 (its documented "no limit"), which
+    // left the mini player's 960 x 540 cap on resizing and maximizing.
+    await windowManager.setMaximumSize(const Size(100000, 100000));
     if (_fullBounds != null) await windowManager.setBounds(_fullBounds!);
     mini = false;
     notifyListeners();
